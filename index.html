@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SIGIL // VIZ · Visualizador creado por Christian Daniel</title>
+<meta name="description" content="Visualizador de audio en tiempo real con dinámicas ProjectM, detección precisa de BPM y estética monocromática." />
+<meta property="og:title" content="SIGIL // VIZ · Visualizador musical" />
+<meta property="og:description" content="Visualizador de audio en tiempo real con dinámicas ProjectM, detección precisa de BPM y estética monocromática." />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" media="print" onload="this.media='all'">
+<style>
+:root{
+  color-scheme:dark;
+  --fg:#f0f2f7;
+  --fg-dim:rgba(240,242,247,.65);
+  --bg:#07080b;
+  --paper:#07080b;
+  --glass:rgba(11,13,18,.72);
+  --glass-card:rgba(14,17,23,.82);
+  --ln:rgba(255,255,255,.12);
+  --ln-strong:rgba(255,255,255,.28);
+  /* Interfaz estrictamente en Blanco y Negro */
+  --accent:#ffffff;
+  --accent-soft:rgba(255,255,255,.2);
+  --c1:#f5f5f5;
+  --c2:#a3a3a3;
+  --c3:#d4d4d4;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px)
+}
+body.w{
+  color-scheme:light;
+  --fg:#121418;
+  --fg-dim:rgba(18,20,24,.65);
+  --bg:#f5f3ec;
+  --paper:#f5f3ec;
+  --glass:rgba(245,243,236,.85);
+  --glass-card:rgba(245,243,236,.92);
+  --ln:rgba(0,0,0,.12);
+  --ln-strong:rgba(0,0,0,.28);
+  --accent:#000000;
+  --accent-soft:rgba(0,0,0,.16);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--fg);font:13px/1.45 "Varela Round",ui-rounded,system-ui,sans-serif;transition:background .35s,color .35s}
+
+/* Escenario y Marco de Grabación */
+#stage-wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:1;pointer-events:none}
+#stage-frame{position:relative;width:100%;height:100%;overflow:hidden;pointer-events:auto}
+#stage-frame.framed{box-shadow:0 0 0 1px var(--ln),0 24px 80px rgba(0,0,0,.6)}
+#stage-corners{position:absolute;inset:12px;pointer-events:none;display:none;z-index:3}
+#stage-frame.framed #stage-corners{display:block}
+.sc-c{position:absolute;width:14px;height:14px;border:2px solid var(--accent);opacity:.85}
+.sc-tl{top:0;left:0;border-right:0;border-bottom:0}.sc-tr{top:0;right:0;border-left:0;border-bottom:0}
+.sc-bl{bottom:0;left:0;border-right:0;border-top:0}.sc-br{bottom:0;right:0;border-left:0;border-top:0}
+#ratio-tag{position:absolute;top:16px;right:16px;font-size:10px;font-family:ui-monospace,monospace;padding:2px 8px;border-radius:999px;background:var(--glass);backdrop-filter:blur(12px);border:1px solid var(--ln);display:none;z-index:4}
+#stage-frame.framed #ratio-tag{display:block}
+
+#cv{display:block;width:100%;height:100%;touch-action:none;pointer-events:none}
+
+/* Panel Lateral */
+#ui{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);bottom:10px;left:0;width:330px;overflow:auto;padding:18px;background:var(--glass);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border:1px solid var(--ln);border-left:0;border-radius:0 26px 26px 0;transition:transform .3s cubic-bezier(.16,1,.3,1);z-index:15;box-shadow:0 16px 44px rgba(0,0,0,.45)}
+#ui.h{transform:translateX(-100%)}
+#tg{position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);left:340px;z-index:16;transition:left .3s cubic-bezier(.16,1,.3,1);width:38px;height:38px;padding:0;font-size:16px;background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1.5px solid var(--ln);color:var(--fg)}
+.brand h1{font-size:16px;margin:0;font-weight:400;letter-spacing:.04em;display:flex;align-items:center;gap:8px}
+.brand h1 span{font-size:10px;padding:2px 7px;border-radius:999px;border:1px solid var(--ln);opacity:.85;font-family:ui-monospace,Menlo,monospace}
+.brand .author{font-size:10.5px;opacity:.65;display:block;margin-top:2px}
+
+details{border-top:1px solid var(--ln);padding:10px 0}
+summary{cursor:pointer;font-size:13px;padding:4px 0;font-weight:500;user-select:none;outline:none}
+.guide{font-size:11px;opacity:.8;background:rgba(127,127,127,.08);padding:7px 10px;border-radius:10px;margin:6px 0 10px;line-height:1.45;border-left:2px solid var(--accent)}
+.r{display:flex;align-items:center;gap:8px;margin:8px 0}.r span{flex:1;font-size:12px;opacity:.92}
+input[type=range]{width:116px;accent-color:var(--fg);cursor:pointer}
+input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px;cursor:pointer}
+input[type=color]{-webkit-appearance:none;appearance:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--fg);padding:0;overflow:hidden;cursor:pointer;background:none}
+input[type=color]::-webkit-color-swatch-wrapper{padding:0}input[type=color]::-webkit-color-swatch{border:0;border-radius:50%}input[type=color]::-moz-color-swatch{border:0;border-radius:50%}
+button,.b{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;border-radius:999px;font:inherit;font-size:12px;padding:6px 14px;background:transparent;border:1.5px solid var(--ln);color:var(--fg);transition:background .15s,border-color .15s,transform .1s}
+button:hover,.b:hover{border-color:var(--fg)}
+button:active,.b:active{transform:scale(.98)}
+button.on{background:var(--fg);color:var(--bg);border-color:var(--fg);font-weight:600}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+pre{margin:6px 0 0;font:inherit;opacity:.78;white-space:pre-wrap;font-variant-numeric:tabular-nums}
+.fn{opacity:.6;font-size:11px;margin-top:10px}
+
+/* Paletas Sugeridas */
+.palette-chips{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.palette-chip{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:12px;border:1px solid var(--ln);background:rgba(127,127,127,.06);cursor:pointer;transition:border-color .15s}
+.palette-chip:hover{border-color:var(--fg)}
+.palette-chip .swatches{display:flex;gap:4px}
+.palette-chip .swatch{width:14px;height:14px;border-radius:50%}
+.palette-chip span{font-size:11px;font-family:ui-monospace,monospace;flex:1}
+
+/* Pantalla de Inicio / Bienvenida */
+#st{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px;padding-left:330px;background:radial-gradient(circle at 60% 50%,rgba(255,255,255,.05) 0%,transparent 65%)}
+#st[hidden]{display:none}
+.welcome-card{background:var(--glass-card);backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);border:1px solid var(--ln);padding:32px 36px;border-radius:28px;max-width:440px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.welcome-card h2{margin:0 0 4px;font-size:22px;font-weight:400}
+.welcome-card .by{font-size:12px;color:var(--fg);opacity:.85;margin-bottom:14px;display:block}
+.welcome-card p{font-size:13px;opacity:.78;line-height:1.55;margin:0 0 20px}
+.welcome-card .actions{display:flex;flex-direction:column;gap:9px}
+
+/* Brújula y Avisos */
+#ar{position:fixed;left:0;top:0;z-index:4;pointer-events:none;display:none}
+#ar b{display:block;font-size:26px;width:26px;text-align:center}#ar i{position:absolute;top:30px;left:-10px;font-size:9px;font-style:normal;white-space:nowrap;font-family:ui-monospace,Menlo,monospace}
+#dz{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:var(--glass);backdrop-filter:blur(24px);font-size:20px;pointer-events:none;border:3px dashed var(--fg)}#dz.on{display:flex}
+#er{position:fixed;left:350px;right:14px;top:calc(env(safe-area-inset-top,0px) + 12px);z-index:25;font-size:12px;pointer-events:none;white-space:pre-wrap;color:#fff}
+
+/* Reproductor Vinilo Táctil */
+#np{position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:14;display:flex;gap:14px;align-items:center;width:min(450px,calc(100vw - 365px));padding:12px 16px 12px 14px;border-radius:32px;background:var(--glass-card);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border:1px solid var(--ln);box-shadow:0 14px 40px rgba(0,0,0,.35);user-select:none}
+#dw{position:relative;flex:none;width:96px;height:96px;cursor:pointer;touch-action:none}
+#disc-svg{position:absolute;inset:-6px;width:108px;height:108px;pointer-events:none;transform:rotate(-90deg)}
+#disc-track{fill:none;stroke:var(--ln);stroke-width:3}
+#disc-bar{fill:none;stroke:var(--accent);stroke-width:3.5;stroke-linecap:round;stroke-dasharray:326.7;stroke-dashoffset:326.7;transition:stroke-dashoffset .1s linear}
+#disc{position:absolute;inset:0;border-radius:50%;background:repeating-radial-gradient(circle,#0d0e11 0 1.5px,#1b1d23 1.5px 3px);box-shadow:0 6px 20px rgba(0,0,0,.45);overflow:hidden}
+#dw::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;background:conic-gradient(from 25deg,transparent 0 8%,rgba(255,255,255,.2) 14%,transparent 20% 58%,rgba(255,255,255,.15) 64%,transparent 70%)}
+#lb{position:absolute;inset:28%;border-radius:50%;background:conic-gradient(var(--c1),var(--c2),var(--c1)) center/cover;display:flex;align-items:center;justify-content:center}
+#lb::after{content:"";position:absolute;inset:38%;border-radius:50%;background:var(--bg)}
+#disc-play-btn{position:absolute;inset:0;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.4);opacity:0;transition:opacity .2s;color:#fff;font-size:16px;z-index:2}
+#dw:hover #disc-play-btn{opacity:1}
+#disc-tip{position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);padding:3px 8px;border-radius:6px;background:var(--fg);color:var(--bg);font-size:10px;font-family:ui-monospace,monospace;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s}
+#dw:hover #disc-tip{opacity:1}
+
+#nt{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
+#nt b{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nt span{font-size:11px;opacity:.78;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+#wave-seeker{position:relative;height:18px;cursor:pointer;display:flex;align-items:center;margin:3px 0}
+#wave-seeker canvas{width:100%;height:100%;display:block}
+#wave-pin{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);pointer-events:none;transform:translateX(-50%)}
+#wave-pin::after{content:"";position:absolute;top:-2px;left:-3px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+#nt-row{display:flex;justify-content:space-between;align-items:center}
+#nt-times{font-size:10px;font-family:ui-monospace,Menlo,monospace;opacity:.8}
+
+/* Mando Giratorio (Knob) */
+.knob-box{display:inline-flex;flex-direction:column;align-items:center;gap:3px;user-select:none;touch-action:none}
+.knob-dial{position:relative;width:40px;height:40px;cursor:ns-resize}
+.knob-dial svg{width:100%;height:100%;transform:rotate(135deg)}
+.knob-bg{fill:none;stroke:var(--ln);stroke-width:3.5}
+.knob-prog{fill:none;stroke:var(--fg);stroke-width:3.5;stroke-linecap:round;stroke-dasharray:188.5;stroke-dashoffset:47;transition:stroke-dashoffset .05s}
+.knob-dot{position:absolute;width:4px;height:4px;border-radius:50%;background:var(--fg);top:5px;left:calc(50% - 2px);transform-origin:2px 15px;pointer-events:none}
+.knob-label{font-size:10px;font-family:ui-monospace,monospace;opacity:.85}
+
+/* Cinta de Estado */
+#status-bar{position:fixed;left:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);z-index:6;display:flex;gap:14px;align-items:center;padding:7px 16px;border-radius:999px;background:var(--glass);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--ln);font-size:11px;font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:.02em;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+#status-bar b{color:var(--accent)}
+#status-bar .sigil-tag{font-weight:700;display:inline-flex;align-items:center;gap:4px;letter-spacing:0}
+#status-bar .sigil-tag::after{content:"";display:inline-block;width:5px;height:5px;background:var(--accent);border-radius:50%}
+
+#bars{position:fixed;inset:0;background:#000;display:none;z-index:0}#hit{position:fixed;inset:0;z-index:2}
+#toast{position:fixed;left:50%;top:20px;transform:translateX(-50%);z-index:40;padding:8px 18px;border-radius:999px;background:rgba(0,0,0,.85);color:#fff;border:1px solid var(--ln);font-size:12px;opacity:0;transition:opacity .3s;pointer-events:none;backdrop-filter:blur(12px)}#toast.on{opacity:1}
+body.obs #ui,body.obs #tg,body.obs #np,body.obs .vp,body.obs #ar,body.obs #er,body.obs #dz,body.obs #st,body.obs #tip,body.obs #status-bar{display:none!important}body.obs{cursor:none}
+.in{width:100%;font:inherit;font-size:12px;padding:6px 12px;border-radius:999px;border:1.5px solid var(--ln);background:transparent;color:var(--fg);margin:3px 0;outline:none}
+select.in option{background:#111;color:#fff}
+.i{cursor:pointer;opacity:.65;font-size:12px;font-style:normal;user-select:none;margin-left:4px}.i:hover{opacity:1}
+#tip{position:fixed;z-index:45;max-width:280px;padding:12px 16px;border-radius:16px;background:var(--glass-card);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--ln);font-size:12px;display:none;box-shadow:0 12px 32px rgba(0,0,0,.35);line-height:1.45}#tip b{float:right;cursor:pointer;margin-left:10px}
+
+/* Módulos Flotantes VST Translúcidos */
+.vp{position:fixed;z-index:20;min-width:220px;min-height:130px;resize:both;overflow:hidden;border-radius:18px;background:var(--glass-card);backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);border:1px solid var(--ln);box-shadow:0 14px 38px rgba(0,0,0,.3);display:flex;flex-direction:column;transition:box-shadow .2s}
+.vp:focus-within,.vp.active{box-shadow:0 18px 46px rgba(0,0,0,.45),0 0 0 1px var(--fg)}
+.vp.minimized{height:36px!important;min-height:36px!important;resize:none!important}
+.vp.minimized .vc,.vp.minimized .vt,.vp.minimized .v-resizer{display:none!important}
+.vh{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;cursor:grab;font-size:11px;font-weight:500;border-bottom:1px solid var(--ln);user-select:none;touch-action:none;background:rgba(127,127,127,.04)}
+.vh:active{cursor:grabbing}
+.vh span{display:flex;align-items:center;gap:6px;font-family:ui-monospace,Menlo,monospace;letter-spacing:.02em}
+.vh-actions{display:flex;align-items:center;gap:6px}
+.vh-btn{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.7;font-size:12px;background:transparent;border:0;color:var(--fg);padding:0}
+.vh-btn:hover{opacity:1;background:var(--ln)}
+.vc{flex:1;position:relative;min-height:0}
+.vp canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+.vt{flex:1;overflow:auto;padding:12px 14px;font-size:12px;line-height:1.55}
+.vt p{margin:0 0 8px}
+.v-resizer{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;pointer-events:auto;z-index:5}
+.v-resizer::after{content:"";position:absolute;right:4px;bottom:4px;width:6px;height:6px;border-right:2px solid var(--fg);border-bottom:2px solid var(--fg);opacity:.5}
+
+/* ── Intro y transición al visualizador ── */
+#st{padding:24px;overflow:auto;background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.07) 0%,rgba(7,8,11,.75) 72%);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);transition:opacity 1.1s cubic-bezier(.4,0,.2,1),backdrop-filter 1.1s ease,-webkit-backdrop-filter 1.1s ease}
+#st.leave{opacity:0;pointer-events:none;backdrop-filter:blur(0);-webkit-backdrop-filter:blur(0)}
+@keyframes introUp{from{opacity:0;transform:translateY(22px) scale(.97);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}
+.welcome-card{max-width:480px;width:100%;animation:introUp 1s cubic-bezier(.16,1,.3,1) backwards;transition:transform 1s cubic-bezier(.4,0,.2,1),opacity .9s ease,filter .9s ease}
+#st.leave .welcome-card{transform:scale(1.07) translateY(-14px);opacity:0;filter:blur(12px)}
+.welcome-card p{margin:0 0 16px}
+.intro-kicker{display:block;font-size:10px;letter-spacing:.16em;opacity:.6;margin-bottom:8px;font-family:ui-monospace,Menlo,monospace}
+.intro-feats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 16px}
+.intro-feat{border:1px solid var(--ln);border-radius:14px;padding:10px 6px;font-size:10.5px;line-height:1.3;opacity:.92;background:rgba(127,127,127,.06)}
+.intro-feat b{display:block;font-size:20px;font-weight:400;color:var(--accent);margin-bottom:2px}
+.intro-steps{text-align:left;font-size:11.5px;opacity:.8;margin:0 0 18px;padding-left:20px;line-height:1.6}
+.welcome-card .or{font-size:10.5px;opacity:.55;margin:2px 0 -2px}
+.welcome-card .actions .g{margin-top:0}
+button.primary{background:var(--fg);color:var(--bg);border-color:var(--fg);padding:11px 18px;font-size:13.5px}
+button.primary:hover{opacity:.9}
+body.intro #ui{transform:translateX(-106%);opacity:0;pointer-events:none}
+body.intro #tg,body.intro #np,body.intro #status-bar{opacity:0;pointer-events:none}
+#ui{transition:transform .3s cubic-bezier(.16,1,.3,1),opacity .3s ease}
+body.entering #ui{transition:transform 1s cubic-bezier(.16,1,.3,1) .45s,opacity .9s ease .45s}
+body.entering #tg,body.entering #np,body.entering #status-bar{transition:opacity .9s ease .7s,transform .9s cubic-bezier(.16,1,.3,1) .7s,left .3s,bottom .3s,right .3s}
+#np{transform-origin:right bottom;transform:translateY(var(--ty,0px)) scale(var(--sc,1))}
+#status-bar{transform-origin:left bottom;transform:translateY(var(--ty,0px)) scale(var(--sc,1));max-width:none;white-space:nowrap}
+body.intro #np,body.intro #status-bar{--ty:26px}
+body.obs.keephud #np,body.obs.keephud #status-bar{display:flex!important}
+#sb-form{display:inline-block}
+#sb-form.flash{animation:fflash .55s ease}
+@keyframes fflash{0%{transform:scale(1.7);filter:brightness(1.8)}100%{transform:scale(1);filter:none}}
+/* ── Menú ordenado ── */
+details.sub{border-top:1px solid var(--ln);padding:7px 0 5px 6px;margin-left:2px}
+details.sub>summary{font-size:12px;font-weight:400}
+.cat-n{opacity:.5;font-size:10px;font-family:ui-monospace,Menlo,monospace;margin-left:6px}
+.sub-h{font-size:10.5px;opacity:.6;margin:12px 0 2px;font-family:ui-monospace,Menlo,monospace;letter-spacing:.05em}
+.rowlink{display:flex;justify-content:space-between;gap:10px;padding:4px 6px;border-radius:8px;cursor:pointer}
+.rowlink:hover{background:var(--ln)}
+#an-sum{font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.85;line-height:1.55;margin:8px 0 6px}
+
+/* Modal Google Drive & Diálogos */
+.modal-backdrop{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.65);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding:20px}
+.modal-backdrop[hidden]{display:none!important}
+.modal-card{width:100%;max-width:540px;max-height:85vh;display:flex;flex-direction:column;background:var(--glass-card);backdrop-filter:blur(36px);-webkit-backdrop-filter:blur(36px);border:1px solid var(--ln);border-radius:24px;box-shadow:0 24px 60px rgba(0,0,0,.6);overflow:hidden}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--ln);background:rgba(127,127,127,.04)}
+.modal-title{display:flex;align-items:center;gap:10px;font-size:13px;font-family:ui-monospace,Menlo,monospace;font-weight:600;letter-spacing:.04em;color:var(--fg)}
+.modal-body{padding:20px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:14px}
+.drive-search-box{display:flex;gap:8px}
+.drive-file-list{display:flex;flex-direction:column;gap:6px;max-height:360px;overflow-y:auto;padding-right:4px}
+.drive-file-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-radius:14px;border:1px solid var(--ln);background:rgba(127,127,127,.04);transition:border-color .15s,background .15s}
+.drive-file-item:hover{border-color:var(--fg);background:rgba(127,127,127,.09)}
+.drive-file-info{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.drive-file-name{font-size:12.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--fg)}
+.drive-file-meta{font-size:10.5px;opacity:.65;font-family:ui-monospace,monospace}
+.drive-empty{text-align:center;padding:32px 16px;opacity:.7;font-size:12px;line-height:1.6}
+.drive-dl-progress{height:4px;background:var(--ln);border-radius:2px;overflow:hidden;margin-top:6px}
+.drive-dl-bar{height:100%;background:var(--accent);width:0%;transition:width .15s}
+.gsi-material-button{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:10px 18px;border-radius:999px;border:1.5px solid var(--ln);background:var(--fg);color:var(--bg);font-weight:600;font-size:13px;cursor:pointer;transition:transform .1s,opacity .15s}
+.gsi-material-button:hover{opacity:.9}
+.gsi-material-button .gsi-material-button-icon{width:20px;height:20px;display:flex;align-items:center;justify-content:center}
+</style>
+</head>
+<body class="intro">
+<div id="bars"></div>
+<div id="stage-wrap">
+  <div id="stage-frame">
+    <div id="stage-corners">
+      <div class="sc-c sc-tl"></div><div class="sc-c sc-tr"></div>
+      <div class="sc-c sc-bl"></div><div class="sc-c sc-br"></div>
+    </div>
+    <div id="ratio-tag">16:9 · REC</div>
+    <canvas id="cv"></canvas>
+  </div>
+</div>
+<div id="hit"></div>
+<div id="toast"></div>
+<div id="tip"><b>×</b><span></span></div>
+<button id="tg" aria-label="Abrir menú">☰</button>
+
+<div id="ui">
+  <div class="brand">
+    <h1>SIGIL // VIZ <span>v1.16</span></h1>
+    <span class="author">Visualizador creado por Christian Daniel</span>
+  </div>
+  <div id="in"></div>
+  <p class="fn">Espacio (Play/Pausa) · ← / → (Formas 3D) · P (Paleta Aleatoria) · T (Tap Tempo) · H (Modo grabación limpio).</p>
+</div>
+
+<div id="ar"><b>➤</b><i></i></div>
+
+<div id="status-bar">
+  <span class="sigil-tag">SIGIL</span>
+  <span>FORMA <b id="sb-form">01</b>/41</span>
+  <span>TEMPO <b id="sb-bpm">—</b></span>
+  <span>TONO <b id="sb-key">—</b></span>
+  <span>ESTADO <b id="sb-stage">LISTO</b></span>
+</div>
+
+<div id="np">
+  <div id="dw" title="Arrastra para mover el tiempo · Clic para reproducir/pausar">
+    <svg id="disc-svg" viewBox="0 0 108 108">
+      <circle id="disc-track" cx="54" cy="54" r="52"></circle>
+      <circle id="disc-bar" cx="54" cy="54" r="52"></circle>
+    </svg>
+    <div id="disc">
+      <div id="lb"></div>
+      <div id="disc-play-btn"><span id="disc-icon">▶</span></div>
+    </div>
+    <div id="disc-tip">0:00.0</div>
+  </div>
+  <div id="nt">
+    <b id="nti">Sin audio cargado</b>
+    <span id="nta">Inicia el drone procedural, micrófono o abre un archivo</span>
+    <div id="wave-seeker" title="Clic para saltar en la canción">
+      <canvas id="wave-cv"></canvas>
+      <div id="wave-pin"></div>
+    </div>
+    <div id="nt-row">
+      <span id="ntl">0.0 LUFS · — BPM</span>
+      <div id="nt-times"><span id="tcur">0:00.0</span> / <span id="ttot">—</span></div>
+    </div>
+  </div>
+</div>
+
+<div id="dz">Suelta tu archivo de audio aquí</div>
+<div id="er"></div>
+
+<!-- Modal Google Drive -->
+<div id="gdrive-modal" class="modal-backdrop" hidden>
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="modal-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path></svg>
+        <span>GOOGLE DRIVE // AUDIO VAULT</span>
+      </div>
+      <button id="gdrive-close" class="vh-btn" aria-label="Cerrar modal">×</button>
+    </div>
+    <div id="gdrive-content" class="modal-body">
+      <!-- Injected dynamically by main.tsx -->
+    </div>
+  </div>
+</div>
+
+<!-- Modal Presets en la Nube (Firestore) -->
+<div id="cloud-presets-modal" class="modal-backdrop" hidden>
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="modal-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+        <span>FIRESTORE // CLOUD PRESETS</span>
+      </div>
+      <button id="cloud-presets-close" class="vh-btn" aria-label="Cerrar modal">×</button>
+    </div>
+    <div id="cloud-presets-content" class="modal-body">
+      <!-- Injected dynamically by main.tsx -->
+    </div>
+  </div>
+</div>
+
+<div id="st">
+  <div class="welcome-card">
+    <span class="intro-kicker">VISUALIZADOR DE AUDIO EN TIEMPO REAL</span>
+    <h2>SIGIL // VIZ</h2>
+    <span class="by">Visualizador creado por Christian Daniel</span>
+    <p>Convierte cualquier beat en un espectáculo visual. Analiza el audio completo —tempo fijo, tonalidad, drops y estructura— y lo dibuja con formas 3D que laten con la música.</p>
+    <div class="intro-feats">
+      <div class="intro-feat"><b>41</b>formas visuales</div>
+      <div class="intro-feat"><b>60</b>instrumentos VST</div>
+      <div class="intro-feat"><b>BPM</b>y drops reales</div>
+    </div>
+    <ol class="intro-steps">
+      <li>Carga un beat (o conecta tu Google Drive / micrófono).</li>
+      <li>Elige una forma y abre los instrumentos que quieras.</li>
+      <li>Activa Beat Cut para que las formas cambien al ritmo.</li>
+      <li>Pulsa H para grabar en modo limpio.</li>
+    </ol>
+    <div class="actions">
+      <button id="enter" class="primary">Entrar al visualizador</button>
+      <div class="or">o empieza directamente con</div>
+      <div class="g"><button id="go">Drone procedural</button><label id="gf" class="b" for="fi">Elegir archivo</label></div>
+      <div class="g" style="margin-top:6px">
+        <button id="intro-gdrive" class="b">Google Drive</button>
+        <button id="intro-cloud-presets" class="b">Presets en la Nube</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

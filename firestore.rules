@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidPreset(data) {
+      return data.keys().hasAll(['id', 'userId', 'name', 'c1', 'c2', 'c3', 'am', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'userId', 'name', 'c1', 'c2', 'c3', 'am', 'presetType', 'shapeIndex', 'fxPreset', 'createdAt', 'updatedAt']) &&
+        data.id is string && isValidId(data.id) &&
+        data.userId is string && data.userId == request.auth.uid &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+        data.c1 is string && data.c1.size() > 0 && data.c1.size() <= 16 &&
+        data.c2 is string && data.c2.size() > 0 && data.c2.size() <= 16 &&
+        data.c3 is string && data.c3.size() > 0 && data.c3.size() <= 16 &&
+        data.am is string && data.am.size() > 0 && data.am.size() <= 16 &&
+        (!('presetType' in data) || (data.presetType is string && data.presetType.size() <= 32)) &&
+        (!('shapeIndex' in data) || (data.shapeIndex is number && data.shapeIndex >= 0 && data.shapeIndex <= 100)) &&
+        (!('fxPreset' in data) || (data.fxPreset is string && data.fxPreset.size() <= 64));
+    }
+
+    function isValidTrack(data) {
+      return data.keys().hasAll(['id', 'userId', 'trackName', 'bpm', 'musicalKey', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'userId', 'trackName', 'bpm', 'musicalKey', 'duration', 'source', 'createdAt']) &&
+        data.id is string && isValidId(data.id) &&
+        data.userId is string && data.userId == request.auth.uid &&
+        data.trackName is string && data.trackName.size() > 0 && data.trackName.size() <= 255 &&
+        data.bpm is number && data.bpm >= 0 && data.bpm <= 500 &&
+        data.musicalKey is string && data.musicalKey.size() <= 32 &&
+        (!('duration' in data) || (data.duration is number && data.duration >= 0)) &&
+        (!('source' in data) || (data.source is string && data.source.size() <= 64));
+    }
+
+    // Presets collection
+    match /presets/{presetId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() &&
+        isValidId(presetId) &&
+        incoming().id == presetId &&
+        isValidPreset(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isSignedIn() &&
+        isValidId(presetId) &&
+        existing().userId == request.auth.uid &&
+        isValidPreset(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'c1', 'c2', 'c3', 'am', 'presetType', 'shapeIndex', 'fxPreset', 'updatedAt']);
+      allow delete: if isSignedIn() && isValidId(presetId) && existing().userId == request.auth.uid;
+    }
+
+    // Tracks history collection
+    match /tracks/{trackId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() &&
+        isValidId(trackId) &&
+        incoming().id == trackId &&
+        isValidTrack(incoming()) &&
+        incoming().createdAt == request.time;
+      allow update: if false; // Tracks are immutable once logged
+      allow delete: if isSignedIn() && isValidId(trackId) && existing().userId == request.auth.uid;
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Sigil Viz - Audio Visualizer",
+  "description": "Professional real-time audio visualizer with accurate BPM detection, mood-driven aesthetic palettes, ProjectM-inspired canvas dynamics, and minimal monochrome UI.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

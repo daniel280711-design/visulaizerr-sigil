@@ -1,0 +1,50 @@
+{
+  "entities": {
+    "Preset": {
+      "title": "Preset",
+      "description": "Configuración guardada de efectos ópticos, paleta cromática y sensibilidad para el visualizador",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "c1": { "type": "string", "maxLength": 16 },
+        "c2": { "type": "string", "maxLength": 16 },
+        "c3": { "type": "string", "maxLength": 16 },
+        "am": { "type": "string", "maxLength": 16 },
+        "presetType": { "type": "string", "maxLength": 32 },
+        "shapeIndex": { "type": "number" },
+        "fxPreset": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "name", "c1", "c2", "c3", "am", "createdAt", "updatedAt"]
+    },
+    "TrackHistory": {
+      "title": "TrackHistory",
+      "description": "Historial de análisis y pistas reproducidas por el usuario",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "trackName": { "type": "string", "maxLength": 255 },
+        "bpm": { "type": "number" },
+        "musicalKey": { "type": "string", "maxLength": 32 },
+        "duration": { "type": "number" },
+        "source": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "trackName", "bpm", "musicalKey", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/presets/{presetId}": {
+      "schema": "Preset",
+      "description": "Colección de presets visuales guardados por usuarios"
+    },
+    "/tracks/{trackId}": {
+      "schema": "TrackHistory",
+      "description": "Historial de pistas de audio analizadas en el visualizador"
+    }
+  }
+}
